@@ -31,21 +31,35 @@ from .properties import PluginProperties
 # (i.e. where the right-hand side starts with ./ or ../).  It handles both
 # single-line replaces and multi-line replace() blocks.
 _REMOVE_LOCAL_REPLACES_AWK = r"""
+# Returns 1 if `spec` is a replace directive pointing to a local path (./ or ../).
+# Matches: <module> [<version>] => ./path  or  <module> [<version>] => ../path
+function is_local_replace(spec) {
+    return spec ~ /^[[:space:]]*[^[:space:]]+([ \t]+[^[:space:]]+)?[ \t]+=>[ \t]+\.\.?\//
+}
+
 BEGIN { inside = 0 }
+
+# Detect the start of a multi-line replace block: replace (
 /^[[:space:]]*replace[[:space:]]*\(/ { inside = 1; print; next }
+
+# Detect the closing ) of a replace block
 inside && /^[[:space:]]*\)[[:space:]]*$/ { inside = 0; print; next }
+
+# Inside a block: comment out any entry pointing to a local path (./ or ../)
 inside {
     stripped = $0; gsub(/^[[:space:]]+/, "", stripped)
-    if (stripped ~ /^[^[:space:]]+([ \t]+[^[:space:]]+)?[ \t]+=>[ \t]+\.\.?\//)
-        { print "// " stripped } else { print }
+    if (is_local_replace(stripped)) { print "// " stripped } else { print }
     next
 }
+
+# Single-line replace: replace module => ./path
 /^[[:space:]]*replace[[:space:]]/ && /=>/ {
     stripped = $0; gsub(/^[[:space:]]+/, "", stripped)
-    spec = substr(stripped, 9)
-    if (spec ~ /^[[:space:]]*[^[:space:]]+([ \t]+[^[:space:]]+)?[ \t]+=>[ \t]+\.\.?\//)
-        { print "// " stripped; next }
+    spec = substr(stripped, 9)  # strip the leading "replace " (8 chars)
+    if (is_local_replace(spec)) { print "// " stripped; next }
 }
+
+# Default: print the line unchanged
 { print }
 """.strip()
 
