@@ -40,7 +40,10 @@ Bug fixes:
   have interdependencies on each other. The method now sets all candidate
   versions before calling ``mark_install``, so the resolver sees the correct
   candidates for all dependencies.
-
+- Fix Ruby plugin: when `"self_contained=True" & "ruby_use_bundler=False"`,
+  Ruby runs `gem build <gemname>` for gems in the source dir instead of build.
+  This caused `override-build` to be ignored. Fixed `gem build` to be on
+  `.gemspec` in `build_subdir` instead of `source_dir`.
 .. _release-2.29.0:
 
 2.29.0 (2026-02-03)
