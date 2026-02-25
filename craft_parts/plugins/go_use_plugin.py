@@ -16,8 +16,6 @@
 
 """The Go Use plugin."""
 
-import logging
-import re
 from pathlib import Path
 from typing import Literal
 
@@ -29,65 +27,36 @@ from .base import Plugin
 from .go_plugin import GoPluginEnvironmentValidator
 from .properties import PluginProperties
 
-logger = logging.getLogger(__name__)
+# awk program that comments out replace directives pointing to local directories
+# (i.e. where the right-hand side starts with ./ or ../).  It handles both
+# single-line replaces and multi-line replace() blocks.
+_REMOVE_LOCAL_REPLACES_AWK = r"""
+BEGIN { inside = 0 }
+/^[[:space:]]*replace[[:space:]]*\(/ { inside = 1; print; next }
+inside && /^[[:space:]]*\)[[:space:]]*$/ { inside = 0; print; next }
+inside {
+    stripped = $0; gsub(/^[[:space:]]+/, "", stripped)
+    if (stripped ~ /^[^[:space:]]+([ \t]+[^[:space:]]+)?[ \t]+=>[ \t]+\.\.?\//)
+        { print "// " stripped } else { print }
+    next
+}
+/^[[:space:]]*replace[[:space:]]/ && /=>/ {
+    stripped = $0; gsub(/^[[:space:]]+/, "", stripped)
+    spec = substr(stripped, 9)
+    if (spec ~ /^[[:space:]]*[^[:space:]]+([ \t]+[^[:space:]]+)?[ \t]+=>[ \t]+\.\.?\//)
+        { print "// " stripped; next }
+}
+{ print }
+""".strip()
 
-# Matches a replace spec where the right side is a local directory path
-# (starts with ./ or ../) rather than a module path with a version.
-_LOCAL_REPLACE_RE = re.compile(r"^\s*(?P<spec>\S+(?:\s+\S+)?\s+=>\s+\.\.?/.*)$")
 
-
-def _remove_local_replaces(go_mod_path: Path) -> None:
-    """Remove replace directives that point to local directories.
-
-    - Single line `replace`
-    - Multi line `replace()` blocks
-
-    - Rule: Need to be a relative file path (`./` or `../`)
-    """
-    text = go_mod_path.read_text(encoding="utf-8")
-    lines = text.splitlines(keepends=True)
-    result: list[str] = []
-
-    inside_block = False
-    for line in lines:
-        stripped = line.strip()
-
-        if stripped.startswith("replace") and stripped.endswith("("):
-            inside_block = True
-            result.append(line)
-            continue
-
-        if inside_block and stripped == ")":
-            inside_block = False
-            result.append(line)
-            continue
-
-        if inside_block:
-            if _LOCAL_REPLACE_RE.match(stripped):
-                logger.debug("Commenting out local replace: %s", stripped)
-                result.append(
-                    f"// {line.lstrip()}"
-                    if line.endswith("\n")
-                    else f"// {line.lstrip()}"
-                )
-                continue
-            result.append(line)
-            continue
-
-        if stripped.startswith("replace ") and "=>" in stripped:
-            spec = stripped[len("replace ") :]
-            if _LOCAL_REPLACE_RE.match(spec):
-                logger.debug("Commenting out local replace: %s", stripped)
-                result.append(
-                    f"// {line.lstrip()}"
-                    if line.endswith("\n")
-                    else f"// {line.lstrip()}"
-                )
-                continue
-
-        result.append(line)
-
-    go_mod_path.write_text("".join(result), encoding="utf-8")
+def _remove_local_replaces_cmd(go_mod_path: Path) -> str:
+    """Return a bash command that comments out local replace directives in go.mod."""
+    return (
+        f"awk '{_REMOVE_LOCAL_REPLACES_AWK}'"
+        f" '{go_mod_path}' > '{go_mod_path}.tmp'"
+        f" && mv '{go_mod_path}.tmp' '{go_mod_path}'"
+    )
 
 
 class GoUsePluginProperties(PluginProperties, frozen=True):
@@ -143,9 +112,9 @@ class GoUsePlugin(Plugin):
                 brief=f"go.mod not found in '{self._part_info.part_src_subdir}'.",
                 resolution="Make sure the source directory contains a go.mod file.",
             )
-        _remove_local_replaces(go_mod_path)
 
         return [
+            _remove_local_replaces_cmd(go_mod_path),
             f"mkdir -p '{dest_dir.parent}'",
             f"ln -sf '{self._part_info.part_src_subdir}' '{dest_dir}'",
         ]

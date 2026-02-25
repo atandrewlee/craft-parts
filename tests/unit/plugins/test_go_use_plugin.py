@@ -15,11 +15,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import subprocess
+
 import pytest
 from craft_parts import errors
 from craft_parts.infos import PartInfo, ProjectInfo
 from craft_parts.parts import Part
-from craft_parts.plugins.go_use_plugin import GoUsePlugin, _remove_local_replaces
+from craft_parts.plugins.go_use_plugin import GoUsePlugin, _remove_local_replaces_cmd
 from pydantic import ValidationError
 
 
@@ -172,11 +174,14 @@ def test_get_build_commands(mocker, part_info, part_data):
     plugin = GoUsePlugin(properties=properties, part_info=part_info)
 
     dest_dir = part_info.part_export_dir / "go-use" / part_info.part_name
+    go_mod_path = part_info.part_src_subdir / "go.mod"
 
-    assert plugin.get_build_commands() == [
-        f"mkdir -p '{part_info.part_export_dir}/go-use'",
-        f"ln -sf '{part_info.part_src_subdir}' '{dest_dir}'",
-    ]
+    commands = plugin.get_build_commands()
+    assert len(commands) == 3
+    assert commands[0].startswith("awk ")
+    assert str(go_mod_path) in commands[0]
+    assert commands[1] == f"mkdir -p '{part_info.part_export_dir}/go-use'"
+    assert commands[2] == f"ln -sf '{part_info.part_src_subdir}' '{dest_dir}'"
 
 
 @pytest.mark.parametrize(
@@ -336,6 +341,7 @@ def test_remove_local_replaces(tmp_path, input_content, expected_content):
     go_mod = tmp_path / "go.mod"
     go_mod.write_text(input_content)
 
-    _remove_local_replaces(go_mod)
+    cmd = _remove_local_replaces_cmd(go_mod)
+    subprocess.run(["bash", "-c", cmd], check=True)
 
     assert go_mod.read_text() == expected_content
