@@ -148,17 +148,6 @@ def test_get_out_of_source_build(part_info):
     assert plugin.get_out_of_source_build() is True
 
 
-def test_get_build_commands_missing_go_mod(part_info):
-    """Test that a PartsError is raised when go.mod is missing."""
-    properties = GoUsePlugin.properties_class.unmarshal({"source": "."})
-    plugin = GoUsePlugin(properties=properties, part_info=part_info)
-
-    with pytest.raises(errors.PartsError) as raised:
-        plugin.get_build_commands()
-
-    assert "go.mod not found" in raised.value.brief
-
-
 @pytest.mark.parametrize(
     "part_data", [{"source": "."}, {"source": ".", "source-subdir": "my/subdir"}]
 )

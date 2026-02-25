@@ -21,8 +21,6 @@ from typing import Literal
 
 from typing_extensions import override
 
-from craft_parts import errors
-
 from .base import Plugin
 from .go_plugin import GoPluginEnvironmentValidator
 from .properties import PluginProperties
@@ -121,11 +119,6 @@ class GoUsePlugin(Plugin):
             self._part_info.part_export_dir / "go-use" / self._part_info.part_name
         )
         go_mod_path = self._part_info.part_src_subdir / "go.mod"
-        if not go_mod_path.exists():
-            raise errors.PartsError(
-                brief=f"go.mod not found in '{self._part_info.part_src_subdir}'.",
-                resolution="Make sure the source directory contains a go.mod file.",
-            )
 
         return [
             _remove_local_replaces_cmd(go_mod_path),
