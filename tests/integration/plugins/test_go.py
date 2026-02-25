@@ -304,6 +304,8 @@ def test_go_monorepo_with_replace_directives(new_dir, partitions):
             - test-root
             plugin: go
             source: .
+            build-snaps:
+            - go/1.25/stable
             build-environment:
             - GO111MODULE: "on"
             - GOPROXY: "off"
