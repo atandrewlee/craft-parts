@@ -174,7 +174,5 @@ def test_get_build_commands_missing_go_mod(part_info):
     properties = GoUsePlugin.properties_class.unmarshal({"source": "."})
     plugin = GoUsePlugin(properties=properties, part_info=part_info)
 
-    with pytest.raises(errors.PartsError) as raised:
+    with pytest.raises(errors.PartsError, match=re.escape("go.mod not found")):
         plugin.get_build_commands()
-
-    assert "go.mod not found" in raised.value.brief
