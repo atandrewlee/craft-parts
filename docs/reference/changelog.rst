@@ -47,7 +47,7 @@ Bug fixes:
   ``self-contained`` key is true and ``ruby-use-bundler`` key is false.
   This resolves an issue where changes made by an ``override-build``
   script were effectively ignored.
-  
+
 .. _release-2.29.0:
 
 2.29.0 (2026-02-03)
