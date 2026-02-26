@@ -467,6 +467,8 @@ class PartSpec(BaseModel):
 
     If unset, the part's layer will only contain the packages specified
     in ``overlay-packages``.
+
+    This key is mutually incompatible with ``override-overlay``.
     """
 
     override_overlay: str | None = Field(
@@ -477,6 +479,8 @@ class PartSpec(BaseModel):
     """A shell script that runs inside the part's overlay chroot.
 
     This is executed inside the overlay mount namespace using a chroot.
+
+    This key is mutually incompatible with ``overlay-script``.
     """
 
     override_build: str | None = Field(
