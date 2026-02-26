@@ -78,7 +78,7 @@ class GoUsePlugin(Plugin):
             self._part_info.part_export_dir / "go-use" / self._part_info.part_name
         )
         go_mod_path = self._part_info.part_src_subdir / "go.mod"
-        if not go_mod_path.exists():
+        if not go_mod_path.is_file():
             raise errors.PartsError(
                 brief=f"go.mod not found in '{self._part_info.part_src_subdir}.",
                 resolution="Make sure the source directory contains a go.mod file",
